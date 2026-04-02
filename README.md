@@ -1,14 +1,15 @@
-# imren-ssh
+# SSH Terminal project
 
-An interactive SSH portfolio — connect from any terminal and explore projects, links, and contact info through a live TUI.
+An interactive terminal based application built with Go, accessible over SSH — connect from any terminal and explore projects, links, and contact info through a live TUI.
 
 ```
-ssh ssh.imren.online
+ssh imren.online
 ```
 
 ## What it is
 
-A [Bubbletea](https://github.com/charmbracelet/bubbletea) TUI served over SSH via [Wish](https://github.com/charmbracelet/wish), deployed on Fly.io. Visitors connect anonymously — no auth required — and get a navigable, typewriter-animated interface with an ASCII portrait, project listings, and contact details.
+Instead of a static website, this site runs as a custom SSH server.
+When a user connects, they are dropped into a fully interactive TUI (Terminal User Interface). A [Bubbletea](https://github.com/charmbracelet/bubbletea) TUI served over SSH via [Wish](https://github.com/charmbracelet/wish), deployed on Fly.io. Visitors connect anonymously — no auth required — and get a navigable, typewriter-animated interface with an ASCII portrait, project listings, and contact details. It shows how identity is expressed in constrained environments (terminal UX).
 
 ## Features
 
@@ -16,8 +17,7 @@ A [Bubbletea](https://github.com/charmbracelet/bubbletea) TUI served over SSH vi
 - Typewriter animation on bio text
 - Responsive layout — adapts to small, medium, and large terminals
 - Keyboard navigation: `tab` / `h` / `l` to move between sections, `1`/`2`/`3` to jump, `q` to quit
-- Rate limiting (10 connections/min per IP, max 20 concurrent sessions)
-- Command execution blocked — shell access is not possible
+
 
 ## Stack
 
@@ -55,6 +55,5 @@ The host key is persisted on a Fly volume mounted at `/data/host_key` so it surv
 
 ## Security notes
 
-- `host_key` / `host_key.pub` are gitignored — never committed
 - All incoming exec commands are blocked at the middleware layer
 - Log inputs are sanitized (non-printable chars stripped, truncated to 64 chars)
