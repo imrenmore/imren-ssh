@@ -1,0 +1,301 @@
+package main
+
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+var (
+	colAmber  = lipgloss.Color("214")
+	colDim    = lipgloss.Color("240")
+	colBody   = lipgloss.Color("252")
+	colBorder = lipgloss.Color("235")
+	colTag    = lipgloss.Color("238")
+	colHint   = lipgloss.Color("237")
+)
+
+var portraitLines = []string{
+	"x+++xXxXXX$xXXXx+xxxXXXXXX+XXX$$$X$$$XXXx$XXXXX+XxXxXX&&xXXx",
+	";XXXxXXxxxxX++++;+$XX$$$x+;;;;+xxxx+xx+xXXXXXXXxXXXXX$&$XXX$X",
+	"++;;xXXx+;;;xXXXX$$$XxXXXXxXXXx+xxXxXXxxxXXXXX$XXXx++xXX+XXx+",
+	"XXXXXX+;;;;xxx+xXX$$$$$XX$$XXXXXXXX$$$XxxXXXxXXX+XXXxXx++XXx+",
+	"$XXXX$XXXXxx+xXXXX$$$$$$$$$$X$$$$$X$$$XxXX$$$X+x++X$Xx+Xxxxxx",
+	"XX$XX$$XXXXXXXXXX$$$$$$$$$$$$$$$$$$$$$X+X$$$$$$X++X;+x;XX+x+X",
+	"XX$$XX$$XX$$XXXX$&$$$$$$$$$$$$$$$$XXXXX+X$$$$$$$xxx+;xx;;++.+",
+	"XX$$$$X$$$$$XX$$&$$$$$&&&&$$$$Xx+;;;;++xXX$$$$$$X;;++X:..xx..",
+	"XX$Xx$$$$$$$$X$&&&&&&&&&&$$$Xx++;;;::;;;++xX&&$$$XXXXxxx;++xx",
+	"$XX$+x$+$X$$$$&&&&&&&&&&$&$Xx++++;;;;;;;;;+xX&$$$$XX$Xxxxx+;X",
+	"XXXXx;x+X+$$$&&&&&&&&&&&&&X++;;;;;;;;;;;;;;+x$&&$&$XX+$$xx+;:",
+	"+XXXx++xX+X$&&&&&&&&&&&&&Xxx++;;;;;;;;;;;;;;+$&&$&$x+xXXXXXxx",
+	"++XXX++xxxX&&&&&&&&&&&&$XxxXXX$X+;;;;;:;:::;+$&&&&$+xX$$XXX$$",
+	"++$$Xxxx+x$&&&&&&&&&&&Xxx$$&&XXXXx++;;;;;;;;+X&&&&$x$$$XXx$$$",
+	"+x+Xx+xxxx&&&&&&&&&&&X+;+xxxx+XXXx++;+xXXXXXX&&&&&$X$$+X$$$$X",
+	";x+X+xx+x$&&&&&$&&&&$+;:::;;+++++;::;x$&$XXx$&&&&&&$+$XXXXxXx",
+	"xxx+xxx+X&&&&&&&&&&$x+;;::::;;;;::.:;+xXx+XX&&&&&&$Xx;x$X+XXX",
+	"Xxxxxxx$&&&&&&&$&&&Xx++;;;;;;+;;::::;;;++++X&&&&&&&xxxxx+xxxx",
+	"XXxXxxX&&&&&&&&&&&$xxxx+++++++::.::::::::;+&&&&&&&&XxxxxxXx++",
+	"xxxxXX$&&&&&&&&&&&$x++++x++;+xXx;;::;;:::;$&&&&&&&&XXxXxx+;;x",
+	"xXXXX$&&&&&&&&&&&&$Xxx++xX$Xx+xxx+;;+x;;+$&&&&&&&&&Xxxx+;xx++",
+	"xX$$$&&&&&&&&&&&&&$Xxxx+;++xxXXxxx+;+++X+&&&&&&&&&&$xx+xxx+xx",
+	"XXX$&&&&&&&&&&&&&&$XXxx+;;+xxxxx++++;+&&&&&&&&&&&&&$xXx+:xxXx",
+	"X$$$&&&&&&&&&&&&&$$XXXXx+;;;;;;;;;;x&&&&&&&&&&&&&&&&$Xx+X+++x",
+	"$xXX&&&&&&&&&&&&&$$XXXxxxx++;;;;;X&&&&&&&&&&&&&&&&&&$$xXxx+xX",
+	"::;++X$$$$&&&&$&&$$XXxxxxxxxxxxXX&&&&&&&&&&&&&&&&&&&$XxXX+Xxx",
+	";;::xXX$$&&&&$$&&$$XXXxxxxxxxXXX$&$&&&&&$&&&&&&&&&&&&x+xx$xxx",
+	";.;x+X$$$&&&XX&&&$$XXXXxxxxXXX$$&$$$$&&$X$XX$&&&&&&&&$x...xXx",
+	" :xXXX$$&&$$x$&&$$XXXXXXXXX$XX$&$$$$&&&$$++x$&&&XxXX$$$$X:::x",
+	" ;+xXX$$&&$xX&&&$XXXXXXXXX$XX$&X$$$$&&$x;+X&&&X+;::..;X$&&+::",
+	":+xxX$$$$$x+$&&&XXxXXxXXXXXxX&XX$$&&&$;::X&$X+;::......X$XXx;",
+	"x$$$$$$$$X+X&&$XXXxxxxXXXx+x$xX$$&&&$;;x$Xx;:::........:$$XxX",
+	"X$$$$$$&X+x&&&+::xxx+xxxx;;XxX$$$&&$+x$+;:::..........::X$$XX",
+	"$&&&&&&&++$&&X;:...     ::+xXX$$&&&xXx;:::...........:::X$$$$",
+	"$&&&&&&+;X&&&;:::..   ..:;xx$$$$&&$x+;::..........::::;+&$X$$",
+	"&&&&&&X;x$&&X.:::...  .::+XX$$$$&&X+::..........:::::;+&&&$$X",
+	"&&&&&$;+$&$&;...........:xX$$$&&&&;:..........:::::;;;+&&$$$&",
+	"&&&&$;+$&$$$;:::..:::.:.+X$$$$&&X:.........:::::::;;;++&&&&$&",
+	"&&&$;+$$$X$X.::::::::;..X$$$&&$:.........:::::::;;;;;:X$$$$&$",
+}
+
+// scaledPortrait samples every 2nd line, every 2nd char
+func scaledPortrait() (string, int, int) {
+	var out []string
+	maxW := 0
+	for i, l := range portraitLines {
+		if i%2 != 0 {
+			continue
+		}
+		runes := []rune(l)
+		var s []rune
+		for j, r := range runes {
+			if j%2 == 0 {
+				s = append(s, r)
+			}
+		}
+		if len(s) > 0 {
+			row := string(s)
+			out = append(out, row)
+			if len([]rune(row)) > maxW {
+				maxW = len([]rune(row))
+			}
+		}
+	}
+	return strings.Join(out, "\n"), maxW, len(out)
+}
+
+var nameArt = `  _                          
+ (_)                         
+  _ _ __ ___  _ __ ___ _ __  
+ | | '_ ` + "`" + `_ \| '__/ _ \ '_ \ 
+ | | | | | | | | |  __/ | | |
+ |_|_| |_| |_|_|  \___|_| |_|`
+
+type entry struct {
+	key, val string
+	tags      []string
+}
+type section struct {
+	title   string
+	entries []entry
+}
+
+var sections = map[string]section{
+	"projects": {"/ projects", []entry{
+		{"SecureVault", "Zero-knowledge encrypted file storage.", []string{"cryptography", "rust", "wasm"}},
+		{"IdentityLayer", "How UI/UX patterns shape digital identity.", []string{"hci", "python", "user-study"}},
+		{"ThreadTrace", "Real-time network packet flow visualizer.", []string{"cybersecurity", "go", "dataviz"}},
+	}},
+	"links": {"/ links", []entry{
+		{"github", "github.com/imren", nil},
+		{"linkedin", "linkedin.com/in/imren", nil},
+		{"resume", "imren.online/resume.pdf", nil},
+	}},
+	"contact": {"/ contact", []entry{
+		{"email", "hello@imren.online", nil},
+		{"availability", "Open to opportunities.", nil},
+		{"response time", "Within 48 hours.", nil},
+	}},
+}
+
+var navOrder = []string{"projects", "links", "contact"}
+
+type tickMsg struct{}
+
+func typeCmd() tea.Cmd {
+	return tea.Tick(12*time.Millisecond, func(t time.Time) tea.Msg { return tickMsg{} })
+}
+
+type model struct {
+	width, height int
+	navIdx        int
+	typedBio      string
+	bioFull       string
+	typing        bool
+	typeTick      int
+}
+
+func newModel() model {
+	return model{
+		bioFull: "CS & Mathematics graduate building\nsecure, human-centered technology.\n\nCybersecurity + design -- exploring how\ndigital systems shape identity & UX.\n\nExplore the directories below:",
+		typing:  true,
+	}
+}
+
+func (m model) Init() tea.Cmd { return typeCmd() }
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
+	case tickMsg:
+		if m.typing {
+			if m.typeTick < len([]rune(m.bioFull)) {
+				m.typeTick++
+				runes := []rune(m.bioFull)
+				m.typedBio = string(runes[:m.typeTick])
+				return m, typeCmd()
+			}
+			m.typing = false
+		}
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		case "tab", "l", "right":
+			m.navIdx = (m.navIdx + 1) % len(navOrder)
+		case "shift+tab", "h", "left":
+			m.navIdx = (m.navIdx - 1 + len(navOrder)) % len(navOrder)
+		case "1":
+			m.navIdx = 0
+		case "2":
+			m.navIdx = 1
+		case "3":
+			m.navIdx = 2
+		}
+	}
+	return m, nil
+}
+
+func (m model) View() string {
+	if m.width == 0 {
+		return "loading..."
+	}
+	w := m.width
+
+	as := lipgloss.NewStyle().Foreground(colAmber)
+	ds := lipgloss.NewStyle().Foreground(colDim)
+	bs := lipgloss.NewStyle().Foreground(colBody)
+	rs := lipgloss.NewStyle().Foreground(colBorder)
+	hs := lipgloss.NewStyle().Foreground(colHint)
+
+	cursor := ""
+	if m.typing {
+		cursor = as.Render("_")
+	}
+
+	// titlebar
+	titleBar := ds.Render("  imren -- ssh.imren.online" +
+		strings.Repeat(" ", w-50) + "[ q to quit ]")
+	titleSep := rs.Render(strings.Repeat("-", w))
+
+	// hint bar
+	hintSep := rs.Render(strings.Repeat("-", w))
+	hint := hs.Render("  tab/h/l: navigate   1/2/3: jump   q: quit")
+
+	// panel — only the currently active section
+	inner := w - 4
+	if inner < 20 {
+		inner = 20
+	}
+	activeSection := sections[navOrder[m.navIdx]]
+	panelBox := lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(colBorder).
+		Padding(0, 1).
+		Width(inner).
+		Render(renderPanel(activeSection, as, bs, rs, inner))
+
+	// portrait
+	pStr, pW, pH := scaledPortrait()
+	textW := w - pW - 6
+	if textW < 24 {
+		textW = 24
+	}
+
+	// right column: name art + bio + nav (rendered once, cleanly)
+	rightBlock := lipgloss.JoinVertical(lipgloss.Left,
+		as.Render(nameArt),
+		"",
+		bs.Width(textW).Render(m.typedBio)+cursor,
+		"",
+		renderNav(m.navIdx, as, ds),
+	)
+
+	var topBlock string
+	if w >= 80 {
+		div := ds.Render(strings.Repeat("|\n", pH))
+		topBlock = lipgloss.JoinHorizontal(lipgloss.Top,
+			lipgloss.NewStyle().Width(pW+1).Render(ds.Render(pStr)),
+			lipgloss.NewStyle().Width(2).Render(div),
+			lipgloss.NewStyle().Width(textW+2).PaddingLeft(2).Render(rightBlock),
+		)
+	} else {
+		topBlock = lipgloss.NewStyle().Width(w - 2).Render(rightBlock)
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Left,
+		titleBar,
+		titleSep,
+		"",
+		lipgloss.NewStyle().PaddingLeft(1).Render(topBlock),
+		"",
+		lipgloss.NewStyle().PaddingLeft(1).Render(panelBox),
+		"",
+		hintSep,
+		hint,
+	)
+}
+
+func renderNav(idx int, as, ds lipgloss.Style) string {
+	var parts []string
+	for i, key := range navOrder {
+		label := strings.ToUpper(key[:1]) + key[1:]
+		if i == idx {
+			parts = append(parts, as.Render("+ "+label))
+		} else {
+			parts = append(parts, ds.Render("  "+label))
+		}
+	}
+	return strings.Join(parts, "   ")
+}
+
+func renderPanel(sec section, as, bs, rs lipgloss.Style, width int) string {
+	keyW := 14
+	valW := width - keyW - 6
+	if valW < 10 {
+		valW = 10
+	}
+	sep := rs.Render(strings.Repeat("-", width-2))
+	var b strings.Builder
+	b.WriteString(as.Render(strings.ToUpper(sec.title)) + "\n")
+	b.WriteString(sep + "\n\n")
+	for _, e := range sec.entries {
+		key := as.Render(fmt.Sprintf("%-*s", keyW, e.key))
+		val := bs.Width(valW).Render(e.val)
+		b.WriteString(key + "  " + val + "\n")
+		if len(e.tags) > 0 {
+			indent := strings.Repeat(" ", keyW+2)
+			var ts []string
+			for _, t := range e.tags {
+				ts = append(ts, lipgloss.NewStyle().
+					Foreground(colTag).Render("["+t+"]"))
+			}
+			b.WriteString(indent + strings.Join(ts, " ") + "\n")
+		}
+		b.WriteString("\n")
+	}
+	return b.String()
+}
